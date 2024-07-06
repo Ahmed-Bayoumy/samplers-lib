@@ -50,7 +50,7 @@ class sampling(Protocol):
             (self.varLimits[i, 1] - self.varLimits[i, 0])
       if "msize" in self.options.keys():
         s = S[:, i]
-        nr = int((self.varLimits[i, 1] - self.varLimits[i, 0])/self.options["msize"])
+        nr = int((self.varLimits[i, 1] - self.varLimits[i, 0])/(self.options["msize"][i] if isinstance(self.options["msize"], list) else self.options["msize"]))
         mod = (s % ((self.varLimits[i, 1] - self.varLimits[i, 0])/nr))
         S[:, i] = s - mod
         
