@@ -1,6 +1,6 @@
 from samplersLib import samplers, kernels
 
-import matplotlib.pyplot as plt
+from matplotlib import pyplot as plt
 import numpy as np
 from scipy import stats
 from multiprocessing import freeze_support

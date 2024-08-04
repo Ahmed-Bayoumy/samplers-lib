@@ -18,9 +18,6 @@ if __name__ == "__main__":
       'plotly>=5.14.1',
       'matplotlib>=3.5.1'
       ],
-    extras_require={
-        'interactive': ['matplotlib>=3.5.1'],
-    },
     classifiers=[
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3 :: Only',
