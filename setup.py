@@ -14,12 +14,11 @@ if __name__ == "__main__":
       'scipy>=1.8.1',
       'setuptools>=58.1.0',
       'requests>=2.20.0',
-      'seaborn',
       "pytest",
       "pytest-cov"
     ],
     extras_require={
-        'interactive': ['matplotlib>=3.5.2', 'plotly>=5.14.1'],
+        'interactive': ['seaborn', 'matplotlib', 'plotly'],
     },
     classifiers=[
         'Programming Language :: Python :: 3',
