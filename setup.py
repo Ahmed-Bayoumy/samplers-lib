@@ -14,6 +14,7 @@ if __name__ == "__main__":
       'scipy>=1.8.1',
       'setuptools>=58.1.0',
       'requests>=2.20.0',
+      'pandas',
       'plotly>=5.14.1'
       ],
     extras_require={
