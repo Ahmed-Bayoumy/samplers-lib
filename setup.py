@@ -14,10 +14,10 @@ if __name__ == "__main__":
       'scipy>=1.8.1',
       'setuptools>=58.1.0',
       'requests>=2.20.0',
-      'seaborn>=0.13.2'
+      'plotly>=5.14.1'
       ],
     extras_require={
-        'interactive': ['matplotlib>=3.5.1', 'plotly>=5.14.1'],
+        'interactive': ['matplotlib>=3.5.1'],
     },
     classifiers=[
         'Programming Language :: Python :: 3',

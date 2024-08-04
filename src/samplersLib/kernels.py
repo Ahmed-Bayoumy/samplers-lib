@@ -134,8 +134,10 @@ class kernel(Protocol):
       self.is_debugging = False
       if self.is_debugging:
         labs = [f'x{i}' for i in range(self._nd)]
-        sns.heatmap(self._cov, annot=True, fmt='g', xticklabels=labs, yticklabels=labs)
-        plt.show()
+        # sns.heatmap(self._cov, annot=True, fmt='g', xticklabels=labs, yticklabels=labs)
+        fig = px.imshow(self._cov, text_auto=True, x=labs, y=labs)
+        fig.show()
+        # plt.show()
       self._inv_cov = self._data_inv_cov / self._factor**2
       # L = np.linalg.cholesky(self._cov*2*np.pi)
       # self._log_det = 2*np.log(np.diag(L)).sum()
