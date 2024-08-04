@@ -13,10 +13,11 @@ if __name__ == "__main__":
       'pyDOE2>=1.3.0',
       'scipy>=1.8.1',
       'setuptools>=58.1.0',
-      'requests>=2.20.0'
+      'requests>=2.20.0',
+      'seaborn>=0.13.2'
       ],
     extras_require={
-        'interactive': ['seaborn>=0.13.2' ,'matplotlib>=3.5.1', 'plotly>=5.14.1'],
+        'interactive': ['matplotlib>=3.5.1', 'plotly>=5.14.1'],
     },
     classifiers=[
         'Programming Language :: Python :: 3',
