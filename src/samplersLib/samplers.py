@@ -6,6 +6,92 @@ import numpy as np
 from scipy.spatial.distance import cdist, pdist
 from .kernels import kernel as KERNEL, Gaussian, Epanechnikov, cosine, linear, uniformRectangular, triweight, tricube, Silverman, Sigmoid, biweight, logistic
 from ._common import *
+from scipy import stats
+
+@dataclass
+class CustomMultivariateNormal:
+  def __init__(self, mean, covariance, seed):
+      self.mean = np.array(mean)
+      self.covariance = np.array(covariance)
+      self.dim = len(mean)
+      self.seed = seed
+      # Compute the Cholesky decomposition of the covariance matrix
+      self.dec_method = self._choose_decomposition()
+      if self.dec_method == "svd":
+        self.L = np.linalg.svd(self.covariance, full_matrices=True, compute_uv=True, hermitian=True)
+      elif self.dec_method == "cholesky":
+        self.L = np.linalg.cholesky(self.covariance)
+      else:
+        self.L = np.linalg.eigh(self.covariance)
+
+      # self.inv_L = np.linalg.inv(self.L)
+      try:
+        self.inv_cov = np.linalg.inv(self.covariance)
+      except np.linalg.LinAlgError:
+        try:
+          self.inv_cov = self.regularize_and_invert(cov_matrix=self.covariance)
+        except np.linalg.LinAlgError:
+          self.inv_cov = self.compute_pseudoinverse(cov_matrix=self.covariance)
+
+      
+      # Precompute normalization constant
+      self.norm_const = 1 / (np.sqrt((2 * np.pi) ** self.dim * np.linalg.det(self.covariance)))
+  
+  def regularize_and_invert(self, cov_matrix, regularization_factor=1e-5):
+    # Add regularization term to the diagonal
+    regularized_cov_matrix = cov_matrix + regularization_factor * np.eye(cov_matrix.shape[0])
+    # Compute the inverse
+    inv_cov_matrix = np.linalg.inv(regularized_cov_matrix)
+    return inv_cov_matrix
+  
+  def compute_pseudoinverse(self, cov_matrix):
+    # Compute the pseudoinverse
+    pseudoinverse_cov_matrix = np.linalg.pinv(cov_matrix)
+    return pseudoinverse_cov_matrix
+
+  def _choose_decomposition(self):
+    """
+    Choose the appropriate matrix decomposition method based on the properties of the covariance matrix.
+    
+    Parameters:
+    self.kernel._cov (np.ndarray): The covariance matrix.
+    
+    Returns:
+    str: The method to use for matrix decomposition.
+    """
+    if not np.allclose(self.covariance, self.covariance.T):
+      return "svd"
+    else:
+      try:
+        # Check if the matrix is positive-definite by attempting Cholesky decomposition
+        np.linalg.cholesky(self.covariance)
+        return 'cholesky'
+      except np.linalg.LinAlgError:
+        return 'eigh'
+
+      
+  def pdf(self, x):
+      x = np.array(x)
+      if x.shape[0] != self.dim:
+          raise ValueError(f"Input dimension must be {self.dim}")
+
+      # Compute the Mahalanobis distance
+      delta = x - self.mean
+      mahalanobis_distance = np.dot(np.dot(delta.T, self.inv_cov), delta)
+      
+      return self.norm_const * np.exp(-0.5 * mahalanobis_distance)
+  
+  def sample(self, num_samples=1):
+      samples = np.random.normal(size=(num_samples, self.dim))
+      if self.dec_method != "eigh":
+        return np.dot(samples, self.L.T) + self.mean
+      else:
+        try:
+          return np.dot(samples, self.L) + self.mean
+        except:
+          rg = np.random
+          random_state = np.random.Generator(rg.PCG64DXSM(seed=self.seed)) 
+          return stats.multivariate_normal(mean=self.mean, cov=self.covariance, allow_singular=True, seed=self.seed)
 
 @dataclass
 class sampling(Protocol):
@@ -539,6 +625,7 @@ class activeSampling(sampling):
   _weights: Any = None
   _msgs: List[List[str]] = None
   _ne: int = 0
+  _cov_decomp: str = 'svd'
   
   def __init__(self, data: np.ndarray, n_r: int, vlim: np.ndarray, kernel_type: str = "Gaussian", bw_method = TUNING_METHOD.SCOTT.name, seed: int = 10000, weights: Any = None):
     self.data = np.atleast_2d(np.asarray(data))
@@ -607,15 +694,29 @@ class activeSampling(sampling):
         self.kernel.est_pdf = np.atleast_1d([1/len(self.kernel.est_pdf)]*len(self.kernel.est_pdf))
       else:
         self.kernel.est_pdf /= sum(self.kernel.est_pdf)
-    
-    random_state = np.random.RandomState(seed)
+    rg = np.random
+    random_state = np.random.Generator(rg.PCG64DXSM(seed=seed)) 
     if type(self.kernel).__name__ == "Gaussian" and self.kernel._cov is not None:
-      normDist = np.transpose(random_state.multivariate_normal(
-          np.zeros((self.n_d,), float), self.kernel._cov, size=size
-      ))
+      MVN = CustomMultivariateNormal(np.zeros((self.n_d,), np.float64), self.kernel._cov, seed)
+      normDist = MVN.sample(size)
+    # The following numpy bug shows a high risk that multivariate_normal gives different results when numpy linear algebra solvers 
+    # get updated (mainly matrix factorization and decomposition methods) and/or when the bitgenerators that control sources 
+    # of randomization have new update which is less likely to happen than the former.
+    # For those reasons, it is not recommended to fully rely on numpy statistical library to sample points via multivariate normal 
+    # distribution given a covariance matrix and mean values. So customed methods are developed here starting from release no. 2408
+    # https://github.com/numpy/numpy/issues/22975
+    # random_state = np.random.RandomState(seed)
+    # if type(self.kernel).__name__ == "Gaussian" and self.kernel._cov is not None:
+    #   normDist = np.transpose(random_state.multivariate_normal(
+    #       np.zeros((self.n_d,), float), self.kernel._cov, size=size
+    #   ))
       indices = random_state.choice(self.kernel._points.shape[0], size=size, p=self.kernel.est_pdf)
       means = self.data[indices, :]
-      new = means + normDist.T
+      if isinstance(normDist, stats._multivariate.multivariate_normal_frozen):
+        new = means + normDist.rvs(size=size, random_state=random_state)
+    #   ))
+      else:
+        new = means + normDist
     else:
       indices1 = random_state.choice(self.kernel.data.shape[0], size=size)
       indices2 = random_state.choice(self.kernel._points.shape[0], size=size, p=abs(self.kernel.est_pdf))
