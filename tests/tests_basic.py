@@ -1,6 +1,8 @@
+import importlib
 from samplersLib import samplers, kernels
+if importlib.util.find_spec('matplotlib'):
+  from matplotlib import pyplot as plt
 
-from matplotlib import pyplot as plt
 import numpy as np
 from scipy import stats
 from multiprocessing import freeze_support
@@ -18,6 +20,8 @@ def test_kernels(plotting = False):
   Ker.tune_bw()
   # Ker.h[0] = 10
   kde_norm = Ker.calculate()
+  if importlib.util.find_spec('matplotlib'):
+    plotting = False
   if plotting:
     # Create two subplots and unpack the output array immediately
     f, (ax1, ax2) = plt.subplots(1, 2)
@@ -75,6 +79,8 @@ def test_multivars(plotting = False):
   ZZ = np.reshape(temp.T, X.shape)
   # S = activeSampling(data=data, n_r=10, vlim=v) 
   S = AS.resample(100, 10000)
+  if importlib.util.find_spec('matplotlib'):
+    plotting = False
 
   if plotting:
     fig = plt.figure()
@@ -110,6 +116,8 @@ def test_bivariate(plotting = False):
   Z = np.reshape(temp.T, X.shape)
 
   S = AS.resample(20, 10000)
+  if importlib.util.find_spec('matplotlib'):
+    plotting = False
   if plotting:
     fig = plt.figure()
     ax = fig.add_subplot(111)
